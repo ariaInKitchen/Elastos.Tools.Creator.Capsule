@@ -418,7 +418,7 @@
 
         var publicKey = generateSubPublicKey(getMasterPublicKey(seed), change, index);
         return {
-            privateKey: generateSubPrivateKey(seed, coin, account, change, index),
+            privateKey: generateSubPrivateKey(seed, coin, change, index),
             publicKey: publicKey,
             address: getAddress(publicKey.toString('hex')),
             did: getDid(publicKey.toString('hex'))
