@@ -447,6 +447,7 @@
     }
 
     function populateNetworkSelect() {
+        var selectedNetwork;
         for (var i=0; i<networks.length; i++) {
             var network = networks[i];
             var option = $("<option>");
@@ -455,10 +456,11 @@
             if (network.name == "ELA - Elastos") {
                 option.prop("selected", true);
                 networkSelectIndex = i;
-                network.onSelect();
+                selectedNetwork = network;
             }
             DOM.phraseNetwork.append(option);
         }
+        selectedNetwork.onSelect();
     }
 
     var networks = [
