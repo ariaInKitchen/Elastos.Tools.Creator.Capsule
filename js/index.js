@@ -2,6 +2,8 @@
     var phraseChangeTimeoutEvent
     var seedChangedTimeoutEvent
     var seed = null
+    var bip32RootKey = null
+    var bip32ExtendedKey = null
     var networkSelectIndex
 
     var addressRowTemplate = $("#address-row-template");
@@ -43,6 +45,9 @@
     }
 
     function onPhraseChanged() {
+        seed = null;
+        bip32RootKey = null;
+        bip32ExtendedKey = null;
         if (phraseChangeTimeoutEvent != null) {
             clearTimeout(phraseChangeTimeoutEvent);
         }
@@ -79,39 +84,26 @@
 
     function networkChanged(e) {
         clearAddressesList();
-        // DOM.litecoinLtubContainer.addClass("hidden");
-        // DOM.bitcoinCashAddressTypeContainer.addClass("hidden");
         networkSelectIndex = e.target.value;
         var network = networks[networkSelectIndex];
         network.onSelect();
-        // adjustNetworkForSegwit();
-        // if (seed != null) {
-        //     phraseChanged();
-        // }
-        // else {
-        //     rootKeyChanged();
-        // }
-    }
-
-    function clean() {
-        document.getElementById("privkey").innerHTML = ''
-        document.getElementById("pubkey").innerHTML = ''
-        document.getElementById("addr").innerHTML = ''
+        if (seed != null) {
+            phraseChanged();
+        }
     }
 
     function generate() {
-        console.log("generate")
         var mnemonic = generateMnemonic()
         DOM.phrase.val(mnemonic)
         phraseChangeTimeoutEvent = setTimeout(phraseChanged, 400);
     }
 
     function phraseChanged() {
-        console.log("phraseChanged")
         var value = DOM.phrase.val()
         if (value == "") return
 
         seed = getSeedFromMnemonic(value).toString('hex')
+
         calcForDerivationPath()
     }
 
@@ -156,8 +148,20 @@
     }
 
     function calcForDerivationPath() {
+        if (seed == null) return;
+
         clearAddressesList();
         showPending();
+
+        if (networkIsELA()) {
+            bitcore.crypto.Point.setCurve('p256')
+        } else {
+            bitcore.crypto.Point.setCurve('secp256k1')
+        }
+        bip32RootKey = bitcore.HDPrivateKey.fromSeed(seed)
+
+        var derivationPath = getDerivationPath();
+        bip32ExtendedKey = calcBip32ExtendedKey(derivationPath);
 
         displayBip32Info();
     }
@@ -288,7 +292,10 @@
 
     function networkIsEthereum() {
         return networks[DOM.network.val()].name == "ETH - Ethereum"
+    }
 
+    function networkIsBtc() {
+        return networks[DOM.network.val()].name == "BTC - Bitcoin"
     }
 
     function TableRow(index, isLast) {
@@ -306,69 +313,50 @@
                 if (!self.shouldGenerate) {
                     return;
                 }
-                // derive HDkey for this row of the table
-                // var key = "NA";
-                // if (useHardenedAddresses) {
-                //     key = bip32ExtendedKey.deriveHardened(index);
-                // }
-                // else {
-                //     key = bip32ExtendedKey.derive(index);
-                // }
-                // // bip38 requires uncompressed keys
-                // // see https://github.com/iancoleman/bip39/issues/140#issuecomment-352164035
-                // var keyPair = key.keyPair;
-                // var useUncompressed = useBip38;
-                // if (useUncompressed) {
-                //     keyPair = new libs.bitcoin.ECPair(keyPair.d, null, { network: network, compressed: false });
-                //     if(isGRS())
-                //         keyPair = new libs.groestlcoinjs.ECPair(keyPair.d, null, { network: network, compressed: false });
 
-                // }
-                // // get address
-                // var address = keyPair.getAddress().toString();
-                // // get privkey
-                // var hasPrivkey = !key.isNeutered();
-                // var privkey = "NA";
-                // if (hasPrivkey) {
-                //     privkey = keyPair.toWIF();
-                //     // BIP38 encode private key if required
-                //     if (useBip38) {
-                //         if(isGRS())
-                //             privkey = libs.groestlcoinjsBip38.encrypt(keyPair.d.toBuffer(), false, bip38password, function(p) {
-                //                 console.log("Progressed " + p.percent.toFixed(1) + "% for index " + index);
-                //             }, null, networks[DOM.network.val()].name.includes("Testnet"));
-                //         else
-                //             privkey = libs.bip38.encrypt(keyPair.d.toBuffer(), false, bip38password, function(p) {
-                //                 console.log("Progressed " + p.percent.toFixed(1) + "% for index " + index);
-                //             });
-                //     }
-                // }
-                // // get pubkey
-                // var pubkey = keyPair.getPublicKeyBuffer().toString('hex');
-                var indexText = getDerivationPath() + "/" + index;
+                var address;
+                var pubkey;
+                var privkey;
+                var did = undefined;
+
+                //derive HDkey for this row of the table
+                var key = "NA";
                 if (useHardenedAddresses) {
-                    indexText = indexText + "'";
+                    key = bip32ExtendedKey.deriveChild(index, true);
                 }
-                // // Ethereum values are different
-                // if (networkIsEthereum()) {
-                //     var pubkeyBuffer = keyPair.getPublicKeyBuffer();
-                //     var ethPubkey = libs.ethUtil.importPublic(pubkeyBuffer);
-                //     var addressBuffer = libs.ethUtil.publicToAddress(ethPubkey);
-                //     var hexAddress = addressBuffer.toString('hex');
-                //     var checksumAddress = libs.ethUtil.toChecksumAddress(hexAddress);
-                //     address = libs.ethUtil.addHexPrefix(checksumAddress);
-                //     pubkey = libs.ethUtil.addHexPrefix(pubkey);
-                //     if (hasPrivkey) {
-                //         privkey = libs.ethUtil.bufferToHex(keyPair.d.toBuffer());
-                //     }
-                // }
+                else {
+                    key = bip32ExtendedKey.deriveChild(index, false);
+                }
 
-                if (networkIsELA()) {
+                if (networkIsBtc()) {
+                    // address = keyPair.getAddress().toString();
+                    privkey = key.privateKey.toString('hex');
+                    pubkey = key.publicKey.toString('hex');
+                    const addr = bitcore.Address.fromPublicKey(key.publicKey);
+                    address = addr.toString();
+                 }
+                else if (networkIsEthereum()) {
+                    privkey = ethUtil.bufferToHex(key._buffers.privateKey);
+
+                    // var ethPubkey = ethUtil.importPublic(key.hdPublicKey.publicKey.toBuffer());
+                    var ethPubkey = ethUtil.privateToPublic(key._buffers.privateKey);
+                    var addressBuffer = ethUtil.publicToAddress(ethPubkey);
+                    var hexAddress = addressBuffer.toString('hex');
+                    var checksumAddress = ethUtil.toChecksumAddress(hexAddress);
+                    address = ethUtil.addHexPrefix(checksumAddress);
+                    pubkey = ethUtil.addHexPrefix(key.publicKey.toString('hex'));
+                }
+                else if (networkIsELA()) {
                     let elaAddress = calcAddressForELA(seed, 0, 0, 0, index);
                     address = elaAddress.address;
                     privkey = elaAddress.privateKey;
                     pubkey = elaAddress.publicKey;
                     did = elaAddress.did;
+                }
+
+                var indexText = getDerivationPath() + "/" + index;
+                if (useHardenedAddresses) {
+                    indexText = indexText + "'";
                 }
 
                 addAddressToList(indexText, address, pubkey, privkey, did);
@@ -385,7 +373,11 @@
 
 
     function getDerivationPath() {
-        return "m/44'/" + networks[networkSelectIndex].coinValue + "'/0'/0"
+        if (networkIsBtc()) {
+            return "m/0'/0";
+        } else {
+            return "m/44'/" + networks[networkSelectIndex].coinValue + "'/0'/0"
+        }
     }
 
     function addAddressToList(indexText, address, pubkey, privkey, did) {
@@ -409,6 +401,31 @@
         }
         // Visibility
         DOM.addresses.append(row);
+    }
+
+    function calcBip32ExtendedKey(path) {
+        // Check there's a root key to derive from
+        if (!seed) {
+            return null;
+        }
+        var extendedKey = bip32RootKey;
+        // Derive the key from the path
+        var pathBits = path.split("/");
+        for (var i=0; i<pathBits.length; i++) {
+            var bit = pathBits[i];
+            var index = parseInt(bit);
+            if (isNaN(index)) {
+                continue;
+            }
+            var hardened = bit[bit.length-1] == "'";
+            if (hardened) {
+                extendedKey = extendedKey.deriveChild(index, true);
+            }
+            else {
+                extendedKey = extendedKey.deriveChild(index, false);
+            }
+        }
+        return extendedKey;
     }
 
     function calcAddressForELA(seed, coin, account, change, index) {
