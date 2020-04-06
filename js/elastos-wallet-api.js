@@ -70,8 +70,8 @@ window.getAddress = publicKey => {
   return getAddress(publicKey)
 }
 
-window.getMasterPublicKey = seed => {
-    return getMasterPublicKey(seed)
+window.getMasterPublicKey = (seed, coinType) => {
+    return getMasterPublicKey(seed, coinType)
 }
 
 window.generateSubPrivateKey = (seed, coinType, chain, index) => {

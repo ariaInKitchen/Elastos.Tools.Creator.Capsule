@@ -18,6 +18,8 @@
     DOM.phraseNetwork = $("#network-phrase")
     DOM.network = $(".network")
     DOM.hardenedAddresses = $(".hardened-addresses")
+    DOM.standardPath = $(".standard-path")
+    DOM.standardElaLable = $("#standard-ela")
     DOM.addresses = $(".addresses")
     DOM.csvTab = $("#csv-tab a")
     DOM.csv = $(".csv");
@@ -38,6 +40,7 @@
         DOM.generate.on('click', generate);
         DOM.network.on("change", networkChanged);
         DOM.hardenedAddresses.on("change", calcForDerivationPath);
+        DOM.standardPath.on("change", setElaStandardPath);
         DOM.csvTab.on("click", updateCsv);
         DOM.more.on("click", showMore);
         populateNetworkSelect();
@@ -164,6 +167,13 @@
         bip32ExtendedKey = calcBip32ExtendedKey(derivationPath);
 
         displayBip32Info();
+    }
+
+    function setElaStandardPath() {
+        if (!networkIsELA()) return;
+
+        setHdCoinPath();
+        calcForDerivationPath();
     }
 
     function clearAddressesList() {
@@ -347,7 +357,11 @@
                     pubkey = ethUtil.addHexPrefix(key.publicKey.toString('hex'));
                 }
                 else if (networkIsELA()) {
-                    let elaAddress = calcAddressForELA(seed, 0, 0, 0, index);
+                    var coin = 0;
+                    if (DOM.standardPath.prop("checked")) {
+                        coin = 2305;
+                    }
+                    let elaAddress = calcAddressForELA(seed, coin, 0, 0, index);
                     address = elaAddress.address;
                     privkey = elaAddress.privateKey;
                     pubkey = elaAddress.publicKey;
@@ -371,10 +385,16 @@
 
     }
 
-
     function getDerivationPath() {
         if (networkIsBtc()) {
             return "m/0'/0";
+        } else if (networkIsELA()) {
+            var useStandardPath = DOM.standardPath.prop("checked");
+            if (useStandardPath) {
+                return "m/44'/2305'/0'/0";
+            } else {
+                return "m/44'/0'/0'/0";
+            }
         } else {
             return "m/44'/" + networks[networkSelectIndex].coinValue + "'/0'/0"
         }
@@ -433,7 +453,7 @@
             return;
         }
 
-        var publicKey = generateSubPublicKey(getMasterPublicKey(seed), change, index);
+        var publicKey = generateSubPublicKey(getMasterPublicKey(seed, coin), change, index);
         return {
             privateKey: generateSubPrivateKey(seed, coin, change, index),
             publicKey: publicKey,
@@ -444,6 +464,11 @@
 
     function setHdCoinPath() {
         DOM.purpose.val(getDerivationPath())
+        if (networkIsELA()) {
+            DOM.standardElaLable.removeClass("hidden");
+        } else {
+            DOM.standardElaLable.addClass("hidden");
+        }
     }
 
     function populateNetworkSelect() {

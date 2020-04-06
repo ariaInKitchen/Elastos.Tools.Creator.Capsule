@@ -76,7 +76,7 @@ var uploadMemo = (accId, accSecret, key, value, privateKey) => {
 const restoreDid = mnemonic => {
     var seed = getSeedFromMnemonic(mnemonic)
     var privateKey = generateSubPrivateKey(seed, COIN_TYPE_ELA, EXTERNAL_CHAIN, 0).toString('hex')
-    var masterPublicKey = getMasterPublicKey(seed)
+    var masterPublicKey = getMasterPublicKey(seed, COIN_TYPE_ELA)
     var publicKey = generateSubPublicKey(masterPublicKey, EXTERNAL_CHAIN, 0).toString('hex')
     var did = getDid(publicKey).toString()
 
