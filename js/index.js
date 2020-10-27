@@ -340,7 +340,7 @@
 
                 if (networkIsBtc()) {
                     // address = keyPair.getAddress().toString();
-                    privkey = key.privateKey.toString('hex');
+                    privkey = key.privateKey.toWIF();
                     pubkey = key.publicKey.toString('hex');
                     const addr = bitcore.Address.fromPublicKey(key.publicKey);
                     address = addr.toString();
