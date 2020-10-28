@@ -1,4 +1,5 @@
 (function() {
+
     var phraseChangeTimeoutEvent
     var seedChangedTimeoutEvent
     var seed = null
@@ -308,6 +309,10 @@
         return networks[DOM.network.val()].name == "BTC - Bitcoin"
     }
 
+    function networkIsFilecoin() {
+        return networks[DOM.network.val()].name == "FIL - Filecoin"
+    }
+
     function TableRow(index, isLast) {
 
         var self = this;
@@ -319,7 +324,7 @@
         }
 
         function calculateValues() {
-            setTimeout(function() {
+            setTimeout(async function() {
                 if (!self.shouldGenerate) {
                     return;
                 }
@@ -355,6 +360,16 @@
                     var checksumAddress = ethUtil.toChecksumAddress(hexAddress);
                     address = ethUtil.addHexPrefix(checksumAddress);
                     pubkey = ethUtil.addHexPrefix(key.publicKey.toString('hex'));
+                }
+                else if (networkIsFilecoin()) {
+                    var mnemonic = DOM.phrase.val()
+                    var password = "";
+                    var path = getDerivationPath() + "/" + index;
+                    const fcSigner = new FilecoinJs.MnemonicSigner( mnemonic, password, path);
+                    const keypair = await fcSigner.getDefaultAccount();
+                    privkey = keypair.private_base64;
+                    pubkey = keypair.public_base64;
+                    address = keypair.address;
                 }
                 else if (networkIsELA()) {
                     var coin = 0;
@@ -506,6 +521,13 @@
         {
             name: "ETH - Ethereum",
             coinValue: 60,
+            onSelect: function() {
+                setHdCoinPath();
+            },
+        },
+        {
+            name: "FIL - Filecoin",
+            coinValue: 461,
             onSelect: function() {
                 setHdCoinPath();
             },
