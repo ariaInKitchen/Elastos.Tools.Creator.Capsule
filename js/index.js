@@ -2,6 +2,8 @@
 
     var phraseChangeTimeoutEvent
     var seedChangedTimeoutEvent
+    var pwdChangedTimeoutEvent
+    var password = ''
     var seed = null
     var bip32RootKey = null
     var bip32ExtendedKey = null
@@ -14,6 +16,8 @@
     var DOM = {}
     DOM.phrase = $("#mnemonic")
     DOM.seed = $(".seed");
+    DOM.password = $(".password");
+    DOM.pwdLable = $("#password-ela")
     DOM.generate = $("#generate")
     DOM.purpose = $("#purpose")
     DOM.phraseNetwork = $("#network-phrase")
@@ -38,6 +42,7 @@
     function init() {
         DOM.phrase.on("input", onPhraseChanged);
         DOM.seed.on("input", delayedSeedChanged);
+        DOM.password.on("input", delayedPwdChanged);
         DOM.generate.on('click', generate);
         DOM.network.on("change", networkChanged);
         DOM.hardenedAddresses.on("change", calcForDerivationPath);
@@ -78,15 +83,41 @@
         seedChangedTimeoutEvent = setTimeout(seedChanged, 400);
     }
 
+    function delayedPwdChanged() {
+        hideValidationError();
+        showPending();
+        clearAddressesList();
+        pwd = '';
+        seed = null;
+        bip32RootKey = null;
+        bip32ExtendedKey = null;
+        if (pwdChangedTimeoutEvent != null) {
+            clearTimeout(pwdChangedTimeoutEvent);
+        }
+        pwdChangedTimeoutEvent = setTimeout(passwordChanged, 400);
+    }
+
     function seedChanged() {
         showPending();
         hideValidationError();
-        seed = DOM.seed.val()
+        seed = DOM.seed.val();
         // Calculate and display
         calcForDerivationPath();
     }
 
+    function passwordChanged() {
+        showPending();
+        hideValidationError();
+        password = DOM.password.val();
+        // Calculate seed
+        phraseChanged();
+    }
+
     function networkChanged(e) {
+        // clear password
+        password = '';
+        DOM.password.val('');
+
         clearAddressesList();
         networkSelectIndex = e.target.value;
         var network = networks[networkSelectIndex];
@@ -106,7 +137,7 @@
         var value = DOM.phrase.val()
         if (value == "") return
 
-        seed = getSeedFromMnemonic(value).toString('hex')
+        seed = getSeedFromMnemonic(value, password).toString('hex')
 
         calcForDerivationPath()
     }
@@ -481,8 +512,10 @@
         DOM.purpose.val(getDerivationPath())
         if (networkIsELA()) {
             DOM.standardElaLable.removeClass("hidden");
+            DOM.pwdLable.removeClass("hidden");
         } else {
             DOM.standardElaLable.addClass("hidden");
+            DOM.pwdLable.addClass("hidden");
         }
     }
 

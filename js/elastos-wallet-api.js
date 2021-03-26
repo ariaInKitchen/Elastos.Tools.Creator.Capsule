@@ -35,7 +35,7 @@ module.exports = {
     generateIdChainSubPublicKey,
     sign,
     verify,
-    Transaction,
+    Transaction
 }
 
 window.COIN_TYPE_ELA = COIN_TYPE_ELA
@@ -46,8 +46,8 @@ window.generateMnemonic = function(lang = 'en') {
     return generateMnemonic(lang)
 };
 
-window.getSeedFromMnemonic = mnemonic => {
-    return getSeedFromMnemonic(mnemonic)
+window.getSeedFromMnemonic = (mnemonic, pwd) => {
+    return getSeedFromMnemonic(mnemonic, pwd)
 }
 
 window.getDid = publicKey => {
