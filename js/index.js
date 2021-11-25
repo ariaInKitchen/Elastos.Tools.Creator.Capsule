@@ -398,8 +398,8 @@
                     var path = getDerivationPath() + "/" + index;
                     const fcSigner = new FilecoinJs.MnemonicSigner( mnemonic, password, path);
                     const keypair = await fcSigner.getDefaultAccount();
-                    privkey = keypair.private_base64;
-                    pubkey = keypair.public_base64;
+                    privkey = keypair.private_hexstring;
+                    pubkey = keypair.public_hexstring;
                     address = keypair.address;
                 }
                 else if (networkIsELA()) {
